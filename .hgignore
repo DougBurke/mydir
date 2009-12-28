@@ -1,0 +1,10 @@
+syntax: glob
+*~
+*.swp
+
+*.hi
+*.o
+
+syntax: regexp
+(.*/)?\#[^/]*\#$
+
