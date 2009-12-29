@@ -167,26 +167,24 @@ terminalWidth = do
                Nothing Nothing)
 
 
-listContents :: Int -- ^ terminal width in characters
+listContents :: (Int, Int) -- ^ number of columns, column width in characters
              -> Bool -- ^ True if files beginning with "." should be included
              -> FilePath -- ^ directory to list
              -> IO ()
-listContents tw flag dname = do
+listContents (nCols, colWidth) flag dname = do
   cnts <- ls dname
   case cnts of
     Left eval   -> putStrLn ("Unable to access directory <" ++ dname ++ ">:\n" ++ show eval) >> exitFailure
     Right cnts' -> do
               let dcnts = lsToDir flag cnts'
-                  ncols = 4
-                  n = (tw - ncols) `div` ncols
-                  dnames = mkColumn n (Just '/') (dirs dcnts)
-                  xnames = mkColumn n (Just '*') (executables dcnts)
-                  lnames = mkColumn n (Just '@') (links dcnts)
-                  fnames = mkColumn n Nothing    (files dcnts)
-              unless (null dnames) $ mapM_ putStrLn (columnToLine ncols dnames)
-              unless (null xnames) $ mapM_ putStrLn (columnToLine ncols xnames)
-              unless (null lnames) $ mapM_ putStrLn (columnToLine ncols lnames)
-              unless (null fnames) $ mapM_ putStrLn (columnToLine ncols fnames)
+                  dnames = mkColumn colWidth (Just '/') (dirs dcnts)
+                  xnames = mkColumn colWidth (Just '*') (executables dcnts)
+                  lnames = mkColumn colWidth (Just '@') (links dcnts)
+                  fnames = mkColumn colWidth Nothing    (files dcnts)
+              unless (null dnames) $ mapM_ putStrLn (columnToLine nCols dnames)
+              unless (null xnames) $ mapM_ putStrLn (columnToLine nCols xnames)
+              unless (null lnames) $ mapM_ putStrLn (columnToLine nCols lnames)
+              unless (null fnames) $ mapM_ putStrLn (columnToLine nCols fnames)
               exitSuccess
 
 usage :: IO ()
@@ -194,19 +192,46 @@ usage = getProgName >>= \n ->
         putStrLn ("Usage: " ++ n ++ " [-a] [directory]") >> 
         exitFailure
 
+{-
+Simple heuristics for getting sensible-looking columns.
+
+We try a minimum column width of 15 characters
+and aim for 4 columns. The calculation below should
+include the space character between columns, but leave
+that out for now.
+-}
+
+minColumnWidth :: Int
+minColumnWidth = 15
+
+maxColumnWidth :: Int
+maxColumnWidth = 40
+
+getColumnSizing :: IO (Int, Int)
+getColumnSizing = do
+  tWidth <- terminalWidth
+  let cWidths = map fromIntegral [minColumnWidth .. maxColumnWidth]
+      nCols = (map ((fromIntegral tWidth) /) cWidths) :: [Double]
+      sels = dropWhile (<4.0) nCols
+      c0 = floor (head nCols)
+      s0 = floor (head sels)
+      nC = if null sels then c0 else s0
+      frac = fromIntegral (tWidth - nC + 1) / fromIntegral nC :: Double
+  return (nC, floor frac)
+
 main :: IO ()
 main = do
   args <- getArgs
-  tWidth <- terminalWidth
+  cInfo <- getColumnSizing
   if null args
-    then listContents tWidth True "."
+    then listContents cInfo True "."
     else if length args > 2
        then usage
        else do
          let flag = head args == "-a"
              dname = if length args == 2 then (head . tail) args else if flag then "." else head args
          when (length args == 2 && not flag) usage
-         listContents tWidth (not flag) dname
+         listContents cInfo (not flag) dname
          
 
 
