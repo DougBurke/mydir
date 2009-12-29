@@ -130,7 +130,7 @@ chunk n xs = y1 : chunk n y2
 -- every n elements.
 --
 columnToLine :: Int -> [String] -> [String]
-columnToLine n xs = map (L.intercalate " ") (chunk n xs)
+columnToLine n = map (L.intercalate " ") . chunk n
 
 -- | get the number of characters in the current terminal.
 -- 
@@ -190,19 +190,22 @@ listContents tw dname = do
                   xnames = mkColumn n (Just '*') (executables dcnts)
                   lnames = mkColumn n (Just '@') (links dcnts)
                   fnames = mkColumn n Nothing    (files dcnts)
-              if null dnames then return () else mapM_ putStrLn (columnToLine ncols dnames)
-              if null xnames then return () else mapM_ putStrLn (columnToLine ncols xnames)
-              if null lnames then return () else mapM_ putStrLn (columnToLine ncols lnames)
-              if null fnames then return () else mapM_ putStrLn (columnToLine ncols fnames)
+              unless (null dnames) $ mapM_ putStrLn (columnToLine ncols dnames)
+              unless (null xnames) $ mapM_ putStrLn (columnToLine ncols xnames)
+              unless (null lnames) $ mapM_ putStrLn (columnToLine ncols lnames)
+              unless (null fnames) $ mapM_ putStrLn (columnToLine ncols fnames)
               exitSuccess
 
+usage = getProgName >>= \n -> 
+        putStrLn ("Usage: " ++ n ++ " [-a] [directory]") >> 
+        exitFailure
+
 main = do
-  pname <- getProgName
   args <- getArgs
   tWidth <- terminalWidth
   case length args of
     0 -> listContents tWidth "."
     1 -> listContents tWidth (head args)
-    _ -> putStrLn ("Usage: " ++ pname ++ " [directory]") >> exitFailure
+    _ -> usage
 
 
