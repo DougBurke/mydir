@@ -196,33 +196,31 @@ usage = getProgName >>= \n ->
 Simple heuristics for getting sensible-looking columns.
 
 We try a minimum column width of 15 characters
-and aim for 4 columns. The calculation below should
-include the space character between columns, but leave
-that out for now.
+and aim for 4 columns. The calculation isn't doing
+quite what I expect.
 -}
 
-minColumnWidth :: Int
-minColumnWidth = 15
+minColumnWidth :: Double
+minColumnWidth = 15.0
 
-maxColumnWidth :: Int
-maxColumnWidth = 40
+maxColumnWidth :: Double
+maxColumnWidth = 35.0
 
-getColumnSizing :: IO (Int, Int)
-getColumnSizing = do
-  tWidth <- terminalWidth
-  let cWidths = map fromIntegral [minColumnWidth .. maxColumnWidth]
-      nCols = (map ((fromIntegral tWidth) /) cWidths) :: [Double]
+getColumnSizing :: Int -> (Int, Int)
+getColumnSizing tWidth = (nC, floor frac)
+    where
+      cWidths = reverse [minColumnWidth .. maxColumnWidth]
+      nCols = map (fromIntegral tWidth /) cWidths
       sels = dropWhile (<4.0) nCols
       c0 = floor (head nCols)
       s0 = floor (head sels)
       nC = if null sels then c0 else s0
       frac = fromIntegral (tWidth - nC + 1) / fromIntegral nC :: Double
-  return (nC, floor frac)
 
 main :: IO ()
 main = do
   args <- getArgs
-  cInfo <- getColumnSizing
+  cInfo <- fmap getColumnSizing terminalWidth
   if null args
     then listContents cInfo True "."
     else if length args > 2
