@@ -5,6 +5,8 @@ syntax: glob
 *.hi
 *.o
 
+mydir
+
 syntax: regexp
 (.*/)?\#[^/]*\#$
 
