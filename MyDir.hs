@@ -63,14 +63,11 @@ getFileType :: FilePath -> IO (Maybe FileType)
 getFileType fp = E.catch (fmap (Just . processStatus) (getSymbolicLinkStatus fp))
                  (return . const Nothing)
     where
-      -- should be re-written to be cleaner
-      processStatus fs = if isDirectory fs
-                            then Directory
-                            else if isSymbolicLink fs
-                                 then Link
-                                 else if fMode == ownerExecuteMode
-                                      then Executable
-                                      else File
+      processStatus fs
+        | isDirectory fs            = Directory
+	| isSymbolicLink fs         = Link
+	| fMode == ownerExecuteMode = Executable
+	| otherwise                 = File
           where
             fMode = fileMode fs `intersectFileModes` ownerExecuteMode
 
@@ -138,7 +135,7 @@ chunk n xs = y1 : chunk n y2
 -- every n elements.
 --
 columnToLine :: Int -> [String] -> [String]
-columnToLine n = map (L.intercalate " ") . chunk n
+columnToLine n = map unwords . chunk n
 
 -- | get the number of characters in the current terminal.
 -- 
@@ -227,7 +224,10 @@ main = do
        then usage
        else do
          let flag = head args == "-a"
-             dname = if length args == 2 then (head . tail) args else if flag then "." else head args
+	     dname
+	       | length args == 2 = (head . tail) args
+	       | flag             = "."
+	       | otherwise        = head args
          when (length args == 2 && not flag) usage
          listContents cInfo (not flag) dname
          
