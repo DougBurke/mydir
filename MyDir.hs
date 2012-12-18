@@ -2,7 +2,7 @@
 
 Display directory contents.
 
-  ghc -o d MyDir.hs
+  ghc --make -O2 -o d MyDir.hs
 
 -}
 
@@ -14,12 +14,13 @@ import System.Directory
 import System.FilePath
 import System.Posix.Files
 import System.Process
-import qualified System.IO.Error as E
 
 import System.IO
 import Control.Concurrent
 import Control.Monad
+
 import qualified Control.Exception as C
+import qualified System.IO.Error as E
 
 import Data.Maybe (isJust)
 import qualified Data.List as L
@@ -60,8 +61,9 @@ sortDC (DirContents ds lks xs fs) = DirContents
 -- was an error accessing the information.
 --
 getFileType :: FilePath -> IO (Maybe FileType)
-getFileType fp = E.catch (fmap (Just . processStatus) (getSymbolicLinkStatus fp))
-                 (return . const Nothing)
+getFileType fp =
+  C.catch (fmap (Just . processStatus) (getSymbolicLinkStatus fp))
+          ((return . const Nothing) :: C.IOException -> IO (Maybe FileType))
     where
       processStatus fs
         | isDirectory fs            = Directory
@@ -72,7 +74,7 @@ getFileType fp = E.catch (fmap (Just . processStatus) (getSymbolicLinkStatus fp)
             fMode = fileMode fs `intersectFileModes` ownerExecuteMode
 
 ls :: FilePath -> IO (Either IOError [(FilePath, FileType)])
-ls dname = E.try ls'
+ls dname = C.try ls'
     where
       ls' = do
         fs <- getDirectoryContents dname
@@ -159,9 +161,9 @@ terminalWidth = do
   case ex of
     ExitSuccess   -> (return . read . tail . dropWhile (/=' ')) output
     ExitFailure r -> 
-      ioError (E.mkIOError E.userErrorType ("Unable to call 'stty size' " ++
-                                            " (exit " ++ show r ++ ")")
-               Nothing Nothing)
+      C.ioError (E.mkIOError E.userErrorType ("Unable to call 'stty size' " ++
+                                              " (exit " ++ show r ++ ")")
+                 Nothing Nothing)
 
 
 listContents :: (Int, Int) -- ^ number of columns, column width in characters
