@@ -19,11 +19,11 @@ executable mydir
   -- Note: just trying to get to build on 7.6.3, not trying to work
   --       out how far back to go.
   build-depends:
-     base == 4.6.*,
+     base >= 4.6 && < 4.8,
      directory == 1.2.*,
      filepath == 1.3.*,
-     process == 1.1.*,
-     unix == 2.6.*
+     process >= 1.1 && < 1.3,
+     unix >= 2.6 && < 2.8
 
   ghc-options:
      -Wall
