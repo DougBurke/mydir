@@ -6,6 +6,9 @@ syntax: glob
 *.o
 
 mydir
+.cabal-sandbox/
+cabal.sandbox.config
+dist/
 
 syntax: regexp
 (.*/)?\#[^/]*\#$
