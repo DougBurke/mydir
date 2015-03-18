@@ -67,9 +67,9 @@ getFileType fp =
     where
       processStatus fs
         | isDirectory fs            = Directory
-	| isSymbolicLink fs         = Link
-	| fMode == ownerExecuteMode = Executable
-	| otherwise                 = File
+        | isSymbolicLink fs         = Link
+        | fMode == ownerExecuteMode = Executable
+        | otherwise                 = File
           where
             fMode = fileMode fs `intersectFileModes` ownerExecuteMode
 
@@ -226,10 +226,10 @@ main = do
        then usage
        else do
          let flag = head args == "-a"
-	     dname
-	       | length args == 2 = (head . tail) args
-	       | flag             = "."
-	       | otherwise        = head args
+             dname
+               | length args == 2 = (head . tail) args
+               | flag             = "."
+               | otherwise        = head args
          when (length args == 2 && not flag) usage
          listContents cInfo (not flag) dname
          
