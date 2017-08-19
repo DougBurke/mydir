@@ -2,15 +2,13 @@
 
 Display directory contents.
 
-  ghc --make -O2 -o d MyDir.hs
-
 -}
 
 module Main where
 
 import System.Exit
 import System.Environment
-import System.Directory
+import System.Directory hiding (isSymbolicLink)
 import System.FilePath
 import System.Posix.Files
 import System.Process

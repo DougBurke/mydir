@@ -16,13 +16,13 @@ executable mydir
   hs-source-dirs:  src
   main-is:         MyDir.hs
 
-  -- Note: just trying to get to build on 7.6.3, not trying to work
-  --       out how far back to go.
   build-depends:
-     base >= 4.6 && < 4.9,
-     directory == 1.2.*,
+     base >= 4.6 && < 5.0,
+     -- to avoid conditional code to deal with changes in directory,
+     -- juts pick a recent version
+     directory >= 1.3 && < 1.4,
      filepath >= 1.3 && < 1.5,
-     process >= 1.1 && < 1.3,
+     process >= 1.1 && < 1.5,
      unix >= 2.6 && < 2.8
 
   ghc-options:
