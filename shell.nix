@@ -1,5 +1,3 @@
-let
-  pkgs = import <nixpkgs> { };
-
-in
-  pkgs.haskellPackages.callPackage ./default.nix { }
+{ compiler ? "ghc8107"
+}:
+(import ./release.nix { compiler = compiler; }).shell
