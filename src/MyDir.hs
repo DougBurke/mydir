@@ -2,6 +2,11 @@
 
 Display directory contents.
 
+The output is coloured unless either
+
+ - this is not a TTY
+ - the NO_COLOR environment variable is set to a non-empty string
+
 -}
 
 module Main where
@@ -9,7 +14,7 @@ module Main where
 import qualified Control.Exception as C
 import qualified System.IO.Error as E
 
-import Data.Maybe (isJust)
+import Data.Maybe (fromMaybe, isJust)
 import qualified Data.List as L
 
 import Control.Concurrent
@@ -17,9 +22,9 @@ import Control.Monad
 
 import System.Console.ANSI (Color(Cyan, Magenta, Red), ColorIntensity(Dull),
                             ConsoleLayer(Foreground), SGR(SetColor),
-                            setSGR)
+                            hSupportsANSIColor, setSGR)
 import System.Exit
-import System.Environment
+import System.Environment (getArgs, getProgName, lookupEnv)
 import System.Directory hiding (isSymbolicLink)
 import System.FilePath
 import System.IO
@@ -146,7 +151,10 @@ columnToLine :: Int -> [String] -> [String]
 columnToLine n = map unwords . chunk n
 
 -- | get the number of characters in the current terminal.
--- 
+--
+--   Could switch to System.Console.ANSI.getTerminalSize but this is
+--   woking for me at the moment.
+--
 terminalWidth :: IO Int
 terminalWidth = do
   (_, Just outh, _, pid) <-
@@ -177,6 +185,7 @@ listContents :: (Int, Int) -- ^ number of columns, column width in characters
              -> FilePath -- ^ directory to list
              -> IO ()
 listContents (nCols, colWidth) flag dname = do
+  showColours <- checkColourSupport
   cnts <- ls dname
   case cnts of
     Left eval   -> putStrLn ("Unable to access directory <" ++ dname ++ ">:\n" ++ show eval) >> exitFailure
@@ -188,7 +197,7 @@ listContents (nCols, colWidth) flag dname = do
                   fnames = mkColumn colWidth Nothing    (files dcnts)
 
                   wrapColor col action = do
-                    setSGR [SetColor Foreground Dull col]
+                    when showColours $ setSGR [SetColor Foreground Dull col]
                     _ <- action
                     setSGR []
 
@@ -197,6 +206,22 @@ listContents (nCols, colWidth) flag dname = do
               unless (null lnames) $ wrapColor Magenta $ mapM_ putStrLn (columnToLine nCols lnames)
               unless (null fnames) $ mapM_ putStrLn (columnToLine nCols fnames)
               exitSuccess
+
+-- Do we want to turn off colour support?
+-- Based on https://no-color.org/
+--
+checkColourSupport :: IO Bool
+checkColourSupport = do
+
+  check <- hSupportsANSIColor stdout
+  case check of
+    False -> pure False
+    True -> do
+      val <- fromMaybe "" <$> lookupEnv "NO_COLOR"
+      case val of
+        "" -> pure True
+        _ -> pure False
+
 
 usage :: IO ()
 usage = getProgName >>= \n -> 
@@ -227,6 +252,7 @@ getColumnSizing tWidth = (nC, floor frac)
       s0 = floor (head sels)
       nC = if null sels then c0 else s0
       frac = fromIntegral (tWidth - nC + 1) / fromIntegral nC :: Double
+
 
 main :: IO ()
 main = do
