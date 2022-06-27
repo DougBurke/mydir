@@ -30,6 +30,7 @@ import qualified Data.List as L
 data FileType = Directory -- ^ A directory
               | Link -- ^ A link (may be invalid)
               | Executable -- ^ Has the executable bit set for the user
+              | BackupFile -- ^ File ends in ~ so assumed to be an emacs backup file
               | File -- ^ None of the above
                 deriving (Eq, Show)
 
@@ -67,9 +68,11 @@ getFileType fp =
         | isDirectory fs            = Directory
         | isSymbolicLink fs         = Link
         | fMode == ownerExecuteMode = Executable
+        | isBackup                  = BackupFile
         | otherwise                 = File
           where
             fMode = fileMode fs `intersectFileModes` ownerExecuteMode
+            isBackup = "~" `L.isSuffixOf` (takeFileName fp)
 
 ls :: FilePath -> IO (Either IOError [(FilePath, FileType)])
 ls dname = C.try ls'
@@ -86,7 +89,7 @@ ls dname = C.try ls'
 -- This step always removes "." and ".." from directories list
 -- and will remove all other entries beginning with "." if 
 -- flag is True
---                
+--
 lsToDir :: Bool -> [(FilePath, FileType)] -> DirContents
 lsToDir flag = sortDC . foldr conv emptyDir
     where
@@ -100,6 +103,8 @@ lsToDir flag = sortDC . foldr conv emptyDir
                                  | otherwise              = inDir { executables = fp : executables inDir }
       conv (fp,File)       inDir | flag && head fp == '.' = inDir
                                  | otherwise              = inDir { files = fp : files inDir }
+      conv (_,BackupFile)  inDir                          = inDir
+
 
 -- | Create the column list of a set of files. Each file is limited to
 -- either n or n-1 characters in length (if lastChar is Nothing
