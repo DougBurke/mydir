@@ -6,22 +6,25 @@ Display directory contents.
 
 module Main where
 
-import System.Exit
-import System.Environment
-import System.Directory hiding (isSymbolicLink)
-import System.FilePath
-import System.Posix.Files
-import System.Process
-
-import System.IO
-import Control.Concurrent
-import Control.Monad
-
 import qualified Control.Exception as C
 import qualified System.IO.Error as E
 
 import Data.Maybe (isJust)
 import qualified Data.List as L
+
+import Control.Concurrent
+import Control.Monad
+
+import System.Console.ANSI (Color(Cyan, Magenta, Red), ColorIntensity(Dull),
+                            ConsoleLayer(Foreground), SGR(SetColor),
+                            setSGR)
+import System.Exit
+import System.Environment
+import System.Directory hiding (isSymbolicLink)
+import System.FilePath
+import System.IO
+import System.Posix.Files
+import System.Process
 
 -- Having trouble compiling against split-0.1.2 so doing it manually
 -- import qualified Data.List.Split as S
@@ -183,9 +186,15 @@ listContents (nCols, colWidth) flag dname = do
                   xnames = mkColumn colWidth (Just '*') (executables dcnts)
                   lnames = mkColumn colWidth (Just '@') (links dcnts)
                   fnames = mkColumn colWidth Nothing    (files dcnts)
-              unless (null dnames) $ mapM_ putStrLn (columnToLine nCols dnames)
-              unless (null xnames) $ mapM_ putStrLn (columnToLine nCols xnames)
-              unless (null lnames) $ mapM_ putStrLn (columnToLine nCols lnames)
+
+                  wrapColor col action = do
+                    setSGR [SetColor Foreground Dull col]
+                    _ <- action
+                    setSGR []
+
+              unless (null dnames) $ wrapColor Cyan $ mapM_ putStrLn (columnToLine nCols dnames)
+              unless (null xnames) $ wrapColor Red $ mapM_ putStrLn (columnToLine nCols xnames)
+              unless (null lnames) $ wrapColor Magenta $ mapM_ putStrLn (columnToLine nCols lnames)
               unless (null fnames) $ mapM_ putStrLn (columnToLine nCols fnames)
               exitSuccess
 
