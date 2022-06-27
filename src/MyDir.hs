@@ -2,26 +2,34 @@
 
 Display directory contents.
 
+The output is coloured unless either
+
+ - this is not a TTY
+ - the NO_COLOR environment variable is set to a non-empty string
+
 -}
 
 module Main where
 
-import System.Exit
-import System.Environment
-import System.Directory hiding (isSymbolicLink)
-import System.FilePath
-import System.Posix.Files
-import System.Process
-
-import System.IO
-import Control.Concurrent
-import Control.Monad
-
 import qualified Control.Exception as C
 import qualified System.IO.Error as E
 
-import Data.Maybe (isJust)
+import Data.Maybe (fromMaybe, isJust)
 import qualified Data.List as L
+
+import Control.Concurrent
+import Control.Monad
+
+import System.Console.ANSI (Color(Cyan, Magenta, Red), ColorIntensity(Dull),
+                            ConsoleLayer(Foreground), SGR(SetColor),
+                            hSupportsANSIColor, setSGR)
+import System.Exit
+import System.Environment (getArgs, getProgName, lookupEnv)
+import System.Directory hiding (isSymbolicLink)
+import System.FilePath
+import System.IO
+import System.Posix.Files
+import System.Process
 
 -- Having trouble compiling against split-0.1.2 so doing it manually
 -- import qualified Data.List.Split as S
@@ -30,6 +38,7 @@ import qualified Data.List as L
 data FileType = Directory -- ^ A directory
               | Link -- ^ A link (may be invalid)
               | Executable -- ^ Has the executable bit set for the user
+              | BackupFile -- ^ File ends in ~ so assumed to be an emacs backup file
               | File -- ^ None of the above
                 deriving (Eq, Show)
 
@@ -67,9 +76,11 @@ getFileType fp =
         | isDirectory fs            = Directory
         | isSymbolicLink fs         = Link
         | fMode == ownerExecuteMode = Executable
+        | isBackup                  = BackupFile
         | otherwise                 = File
           where
             fMode = fileMode fs `intersectFileModes` ownerExecuteMode
+            isBackup = "~" `L.isSuffixOf` (takeFileName fp)
 
 ls :: FilePath -> IO (Either IOError [(FilePath, FileType)])
 ls dname = C.try ls'
@@ -86,7 +97,7 @@ ls dname = C.try ls'
 -- This step always removes "." and ".." from directories list
 -- and will remove all other entries beginning with "." if 
 -- flag is True
---                
+--
 lsToDir :: Bool -> [(FilePath, FileType)] -> DirContents
 lsToDir flag = sortDC . foldr conv emptyDir
     where
@@ -100,6 +111,8 @@ lsToDir flag = sortDC . foldr conv emptyDir
                                  | otherwise              = inDir { executables = fp : executables inDir }
       conv (fp,File)       inDir | flag && head fp == '.' = inDir
                                  | otherwise              = inDir { files = fp : files inDir }
+      conv (_,BackupFile)  inDir                          = inDir
+
 
 -- | Create the column list of a set of files. Each file is limited to
 -- either n or n-1 characters in length (if lastChar is Nothing
@@ -138,7 +151,10 @@ columnToLine :: Int -> [String] -> [String]
 columnToLine n = map unwords . chunk n
 
 -- | get the number of characters in the current terminal.
--- 
+--
+--   Could switch to System.Console.ANSI.getTerminalSize but this is
+--   woking for me at the moment.
+--
 terminalWidth :: IO Int
 terminalWidth = do
   (_, Just outh, _, pid) <-
@@ -169,6 +185,7 @@ listContents :: (Int, Int) -- ^ number of columns, column width in characters
              -> FilePath -- ^ directory to list
              -> IO ()
 listContents (nCols, colWidth) flag dname = do
+  showColours <- checkColourSupport
   cnts <- ls dname
   case cnts of
     Left eval   -> putStrLn ("Unable to access directory <" ++ dname ++ ">:\n" ++ show eval) >> exitFailure
@@ -178,11 +195,33 @@ listContents (nCols, colWidth) flag dname = do
                   xnames = mkColumn colWidth (Just '*') (executables dcnts)
                   lnames = mkColumn colWidth (Just '@') (links dcnts)
                   fnames = mkColumn colWidth Nothing    (files dcnts)
-              unless (null dnames) $ mapM_ putStrLn (columnToLine nCols dnames)
-              unless (null xnames) $ mapM_ putStrLn (columnToLine nCols xnames)
-              unless (null lnames) $ mapM_ putStrLn (columnToLine nCols lnames)
+
+                  wrapColor col action = do
+                    when showColours $ setSGR [SetColor Foreground Dull col]
+                    _ <- action
+                    setSGR []
+
+              unless (null dnames) $ wrapColor Cyan $ mapM_ putStrLn (columnToLine nCols dnames)
+              unless (null xnames) $ wrapColor Red $ mapM_ putStrLn (columnToLine nCols xnames)
+              unless (null lnames) $ wrapColor Magenta $ mapM_ putStrLn (columnToLine nCols lnames)
               unless (null fnames) $ mapM_ putStrLn (columnToLine nCols fnames)
               exitSuccess
+
+-- Do we want to turn off colour support?
+-- Based on https://no-color.org/
+--
+checkColourSupport :: IO Bool
+checkColourSupport = do
+
+  check <- hSupportsANSIColor stdout
+  case check of
+    False -> pure False
+    True -> do
+      val <- fromMaybe "" <$> lookupEnv "NO_COLOR"
+      case val of
+        "" -> pure True
+        _ -> pure False
+
 
 usage :: IO ()
 usage = getProgName >>= \n -> 
@@ -213,6 +252,7 @@ getColumnSizing tWidth = (nC, floor frac)
       s0 = floor (head sels)
       nC = if null sels then c0 else s0
       frac = fromIntegral (tWidth - nC + 1) / fromIntegral nC :: Double
+
 
 main :: IO ()
 main = do
