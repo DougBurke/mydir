@@ -199,7 +199,7 @@ listContents (nCols, colWidth) flag dname = do
                   wrapColor col action = do
                     when showColours $ setSGR [SetColor Foreground Dull col]
                     _ <- action
-                    setSGR []
+                    when showColours $ setSGR []
 
               unless (null dnames) $ wrapColor Cyan $ mapM_ putStrLn (columnToLine nCols dnames)
               unless (null xnames) $ wrapColor Red $ mapM_ putStrLn (columnToLine nCols xnames)
