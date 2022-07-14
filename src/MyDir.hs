@@ -38,7 +38,9 @@ import System.Process
 data FileType = Directory -- ^ A directory
               | Link -- ^ A link (may be invalid)
               | Executable -- ^ Has the executable bit set for the user
-              | BackupFile -- ^ File ends in ~ so assumed to be an emacs backup file
+              | BackupFile -- ^ File ends in ~ so assumed to be an emacs backup file.
+                           --   This is only done for executables and files; we do
+                           --   not filter out directory or links that end in ~
               | File -- ^ None of the above
                 deriving (Eq, Show)
 
@@ -75,8 +77,8 @@ getFileType fp =
       processStatus fs
         | isDirectory fs            = Directory
         | isSymbolicLink fs         = Link
-        | fMode == ownerExecuteMode = Executable
         | isBackup                  = BackupFile
+        | fMode == ownerExecuteMode = Executable
         | otherwise                 = File
           where
             fMode = fileMode fs `intersectFileModes` ownerExecuteMode

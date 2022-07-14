@@ -1,7 +1,7 @@
 { sources ? import ./nix/sources.nix
 # , nixpkgs ? import sources.nixpkgs {}
 , pkgs ? import sources.nixpkgs {}
-, compiler ? "ghc8107"
+, compiler ? "ghc902"
 }:
 
 let
