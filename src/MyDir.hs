@@ -82,7 +82,7 @@ getFileType fp =
         | otherwise                 = File
           where
             fMode = fileMode fs `intersectFileModes` ownerExecuteMode
-            isBackup = "~" `L.isSuffixOf` (takeFileName fp)
+            isBackup = "~" `L.isSuffixOf` takeFileName fp
 
 ls :: FilePath -> IO (Either IOError [(FilePath, FileType)])
 ls dname = C.try ls'
@@ -216,14 +216,14 @@ checkColourSupport :: IO Bool
 checkColourSupport = do
 
   check <- hSupportsANSIColor stdout
-  case check of
-    False -> pure False
-    True -> do
+  if check then
+    do
       val <- fromMaybe "" <$> lookupEnv "NO_COLOR"
       case val of
         "" -> pure True
         _ -> pure False
-
+  else
+    pure False
 
 usage :: IO ()
 usage = getProgName >>= \n -> 
