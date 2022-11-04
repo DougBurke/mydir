@@ -14,9 +14,10 @@ module Main where
 import qualified Control.Exception as C
 import qualified System.IO.Error as E
 
-import Data.Maybe (fromMaybe, isJust)
+import Data.Maybe (fromJust, fromMaybe, isJust)
 import qualified Data.List as L
 
+import Control.Arrow (second)
 import Control.Concurrent
 import Control.Monad
 
@@ -92,7 +93,7 @@ ls dname = C.try ls'
         ts <- mapM (getFileType . (dname </>)) fs
 
         let xs = filter (isJust . snd) $ zip fs ts
-            ys = map (\(a,Just b) -> (a,b)) xs
+            ys = map (second fromJust) xs
 
         return ys
 
