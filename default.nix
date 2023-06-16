@@ -1,3 +1,3 @@
-{ compiler ? "ghc902"
+{ compiler ? "ghc96"
 }:
 (import ./release.nix { compiler = compiler; }).exe

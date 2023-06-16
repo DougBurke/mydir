@@ -13,6 +13,7 @@ module Main where
 
 import qualified Control.Exception as C
 import qualified System.IO.Error as E
+import qualified System.Info as SI
 
 import Data.Maybe (fromJust, fromMaybe, isJust)
 import qualified Data.List as L
@@ -21,6 +22,7 @@ import Control.Arrow (second)
 import Control.Concurrent
 import Control.Monad
 
+import Data.Version (showVersion)
 import System.Console.ANSI (Color(Cyan, Magenta, Red), ColorIntensity(Dull),
                             ConsoleLayer(Foreground), SGR(SetColor),
                             hSupportsANSIColor, setSGR)
@@ -228,8 +230,16 @@ checkColourSupport = do
 
 usage :: IO ()
 usage = getProgName >>= \n -> 
-        putStrLn ("Usage: " ++ n ++ " [-a] [directory]") >> 
+        putStrLn ("Usage: " ++ n ++ " [-a|-v] [directory]") >> 
         exitFailure
+
+reportVersion :: IO ()
+reportVersion = do
+  name <- getProgName
+  putStrLn (name <> ": " <> SI.compilerName <> " " <> showVersion SI.fullCompilerVersion <>
+            " (" <> SI.os <> " " <> SI.arch <> ")")
+  exitSuccess
+
 
 {-
 Simple heuristics for getting sensible-looking columns.
@@ -257,22 +267,32 @@ getColumnSizing tWidth = (nC, floor frac)
       frac = fromIntegral (tWidth - nC + 1) / fromIntegral nC :: Double
 
 
+data Args = Args { version :: Bool, allFiles :: Bool, location :: String }
+
+defArgs :: Args
+defArgs = Args { version = False, allFiles = True, location = "." }
+
+
+-- Muddle through without a proper parser for now
+processArgs :: [String] -> Maybe Args
+processArgs [] = Just defArgs
+processArgs ["-a"] = Just $ defArgs { allFiles = False }
+processArgs ["-v"] = Just $ defArgs { version = True }
+processArgs [loc] = Just $ defArgs { location = loc }
+processArgs ["-a", loc] = Just $ defArgs { allFiles = False, location = loc }
+processArgs ["-v", loc] = Just $ defArgs { version = True, location = loc }  -- could make this an error
+processArgs _ = Nothing
+
 main :: IO ()
 main = do
-  args <- getArgs
-  cInfo <- fmap getColumnSizing terminalWidth
-  if null args
-    then listContents cInfo True "."
-    else if length args > 2
-       then usage
-       else do
-         let flag = head args == "-a"
-             dname
-               | length args == 2 = (head . tail) args
-               | flag             = "."
-               | otherwise        = head args
-         when (length args == 2 && not flag) usage
-         listContents cInfo (not flag) dname
+  mArgs <- processArgs <$> getArgs
+  case mArgs of
+    Just args -> do
+      if version args
+      then reportVersion
+      else do
+        cInfo <- fmap getColumnSizing terminalWidth
+        listContents cInfo (allFiles args) (location args)
          
 
 
