@@ -12,11 +12,14 @@ The output is coloured unless either
 module Main where
 
 import qualified Control.Exception as C
+import qualified Data.List as L
 import qualified System.IO.Error as E
 import qualified System.Info as SI
 
+-- import qualified PackageInfo_mydir as P
+import qualified Paths_mydir as P
+
 import Data.Maybe (fromJust, fromMaybe, isJust)
-import qualified Data.List as L
 
 import Control.Arrow (second)
 import Control.Concurrent
@@ -230,14 +233,15 @@ checkColourSupport = do
 
 usage :: IO ()
 usage = getProgName >>= \n -> 
-        putStrLn ("Usage: " ++ n ++ " [-a|-v] [directory]") >> 
+        putStrLn ("Usage: " ++ n ++ " [-h|-a|-v] [directory]") >>
         exitFailure
 
 reportVersion :: IO ()
 reportVersion = do
   name <- getProgName
-  putStrLn (name <> ": " <> SI.compilerName <> " " <> showVersion SI.fullCompilerVersion <>
-            " (" <> SI.os <> " " <> SI.arch <> ")")
+  putStrLn (name <> ": v" <> showVersion P.version <> " (" <>
+           SI.compilerName <> " " <> showVersion SI.fullCompilerVersion <>
+           " " <> SI.os <> " " <> SI.arch <> ")")
   exitSuccess
 
 
@@ -267,15 +271,20 @@ getColumnSizing tWidth = (nC, floor frac)
       frac = fromIntegral (tWidth - nC + 1) / fromIntegral nC :: Double
 
 
-data Args = Args { version :: Bool, allFiles :: Bool, location :: String }
+data Args = Args {
+     help :: Bool,
+     version :: Bool,
+     allFiles :: Bool,
+     location :: String }
 
 defArgs :: Args
-defArgs = Args { version = False, allFiles = True, location = "." }
+defArgs = Args { help = False, version = False, allFiles = True, location = "." }
 
 
 -- Muddle through without a proper parser for now
 processArgs :: [String] -> Maybe Args
 processArgs [] = Just defArgs
+processArgs ["-h"] = Just $ defArgs { help = True }
 processArgs ["-a"] = Just $ defArgs { allFiles = False }
 processArgs ["-v"] = Just $ defArgs { version = True }
 processArgs [loc] = Just $ defArgs { location = loc }
@@ -288,12 +297,12 @@ main = do
   mArgs <- processArgs <$> getArgs
   case mArgs of
     Just args -> do
-      if version args
-      then reportVersion
-      else do
-        cInfo <- fmap getColumnSizing terminalWidth
-        listContents cInfo (allFiles args) (location args)
-         
+      if help args
+      then usage
+      else if version args
+           then reportVersion
+           else do
+             cInfo <- fmap getColumnSizing terminalWidth
+             listContents cInfo (allFiles args) (location args)
 
-
-
+    Nothing -> usage
