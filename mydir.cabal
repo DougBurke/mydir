@@ -1,7 +1,7 @@
 cabal-version:  2.4
 
 name:      mydir
-version:   1.1
+version:   1.2
 synopsis:  A simple directory listing utility
 description:
   Split up the directory contents into sub-directories, executable
@@ -17,6 +17,11 @@ executable mydir
   hs-source-dirs:  src
   main-is:         MyDir.hs
 
+  -- other-modules:   PackageInfo_mydir
+  -- autogen-modules: PackageInfo_mydir
+  other-modules:   Paths_mydir
+  autogen-modules: Paths_mydir
+
   build-depends:
      ansi-terminal == 0.11.*,
      base >= 4.6 && < 5.0,
@@ -31,4 +36,3 @@ executable mydir
 
   ghc-options:
      -Wall
-
