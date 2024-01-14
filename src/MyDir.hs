@@ -109,17 +109,21 @@ ls dname = C.try ls'
 lsToDir :: Bool -> [(FilePath, FileType)] -> DirContents
 lsToDir flag = sortDC . foldr conv emptyDir
     where
-      conv (".",Directory) inDir  = inDir
-      conv ("..",Directory) inDir = inDir
-      conv (fp,Directory)  inDir | flag && head fp == '.' = inDir
-                                 | otherwise              = inDir { dirs = fp : dirs inDir }
-      conv (fp,Link)       inDir | flag && head fp == '.' = inDir
-                                 | otherwise              = inDir { links = fp : links inDir }
-      conv (fp,Executable) inDir | flag && head fp == '.' = inDir
-                                 | otherwise              = inDir { executables = fp : executables inDir }
-      conv (fp,File)       inDir | flag && head fp == '.' = inDir
-                                 | otherwise              = inDir { files = fp : files inDir }
-      conv (_,BackupFile)  inDir                          = inDir
+      conv (".", Directory) inDir          = inDir
+      conv ("..", Directory) inDir         = inDir
+      conv ('.':_, Directory) inDir | flag = inDir
+      conv (fp, Directory) inDir           = inDir { dirs = fp : dirs inDir }
+
+      conv ('.':_, Link) inDir | flag = inDir
+      conv (fp, Link) inDir           = inDir { links = fp : links inDir }
+
+      conv ('.':_, Executable) inDir | flag = inDir
+      conv (fp, Executable) inDir           = inDir { executables = fp : executables inDir }
+
+      conv ('.':_, File) inDir | flag = inDir
+      conv (fp, File) inDir           = inDir { files = fp : files inDir }
+
+      conv (_, BackupFile)  inDir = inDir
 
 
 -- | Create the column list of a set of files. Each file is limited to
@@ -181,7 +185,7 @@ terminalWidth = do
   ex <- waitForProcess pid
 
   case ex of
-    ExitSuccess   -> (return . read . tail . dropWhile (/=' ')) output
+    ExitSuccess   -> (return . read . drop 1 . dropWhile (/=' ')) output
     ExitFailure r -> 
       C.ioError (E.mkIOError E.userErrorType ("Unable to call 'stty size' " ++
                                               " (exit " ++ show r ++ ")")
@@ -253,21 +257,23 @@ and aim for 4 columns. The calculation isn't doing
 quite what I expect.
 -}
 
-minColumnWidth :: Double
-minColumnWidth = 15.0
-
-maxColumnWidth :: Double
-maxColumnWidth = 35.0
+possibleWidths :: [Double]
+possibleWidths = [15 .. 35]
 
 getColumnSizing :: Int -> (Int, Int)
 getColumnSizing tWidth = (nC, floor frac)
     where
-      cWidths = reverse [minColumnWidth .. maxColumnWidth]
+      cWidths = reverse possibleWidths
       nCols = map (fromIntegral tWidth /) cWidths
       sels = dropWhile (<4.0) nCols
-      c0 = floor (head nCols)
-      s0 = floor (head sels)
-      nC = if null sels then c0 else s0
+      c0 = case nCols of
+        c: _ -> floor c
+        _ -> error "possibleWidths is empty!"
+
+      nC = case sels of
+             s0:_ -> floor s0
+             _ -> c0
+
       frac = fromIntegral (tWidth - nC + 1) / fromIntegral nC :: Double
 
 

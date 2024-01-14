@@ -1,7 +1,7 @@
 cabal-version:  2.4
 
 name:      mydir
-version:   1.2
+version:   1.3
 synopsis:  A simple directory listing utility
 description:
   Split up the directory contents into sub-directories, executable
@@ -24,7 +24,7 @@ executable mydir
 
   build-depends:
      ansi-terminal >= 0.11 && < 1.1,
-     base >= 4.6 && < 5.0,
+     base >= 4.9 && < 5.0,
      -- to avoid conditional code to deal with changes in directory,
      -- juts pick a recent version
      directory >= 1.3 && < 1.4,
